@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#3F8F6B">
+  <title>Ponci Tracker</title>
+  <meta name="description" content="Seguimiento personal de peso y hábitos">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ponci Tracker">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- Encabezado y pestañas -->
+    <header class="encabezado">
+      <div>
+        <h1 id="saludo">Hola, Ponci</h1>
+        <p class="fecha" id="fechaHoy"></p>
+      </div>
+      <button class="btn-icono" id="btnRespaldoRapido" type="button" aria-label="Descargar respaldo de mis datos" title="Respaldar datos">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button role="tab" class="tab" data-vista="inicio" aria-selected="true" id="tab-inicio" aria-controls="vista-inicio">Inicio</button>
+      <button role="tab" class="tab" data-vista="historial" aria-selected="false" id="tab-historial" aria-controls="vista-historial">Historial</button>
+      <button role="tab" class="tab" data-vista="medidas" aria-selected="false" id="tab-medidas" aria-controls="vista-medidas">Medidas</button>
+      <button role="tab" class="tab" data-vista="ajustes" aria-selected="false" id="tab-ajustes" aria-controls="vista-ajustes">Ajustes</button>
+    </nav>
+
+    <main>
+      <div id="avisoAlmacenamiento" class="banner banner-rojo" role="alert" hidden></div>
+
+      <!-- ============ INICIO ============ -->
+      <section id="vista-inicio" class="vista" role="tabpanel" aria-labelledby="tab-inicio">
+        <div id="bannerEstado"></div>
+        <div id="bannerMedidas"></div>
+        <div id="avisoInstalar"></div>
+        <div id="avisoRespaldo"></div>
+
+        <section class="tarjeta" aria-labelledby="t-resumen">
+          <h2 id="t-resumen" class="visualmente-oculto">Resumen</h2>
+          <div class="cifras" id="resumen"></div>
+        </section>
+
+        <section class="tarjeta" aria-labelledby="t-progreso">
+          <h2 id="t-progreso">Progreso hacia la meta</h2>
+          <div id="progreso"></div>
+        </section>
+
+        <section class="tarjeta" aria-labelledby="t-grafico">
+          <h2 id="t-grafico">Evolución del peso (kg)</h2>
+          <div class="grafico-caja" id="grafico"></div>
+          <ul class="leyenda" aria-hidden="true">
+            <li><span class="muestra muestra-real"></span>Peso real</li>
+            <li><span class="muestra muestra-ideal"></span>Ruta ideal</li>
+            <li><span class="muestra muestra-meta"></span>Meta</li>
+          </ul>
+        </section>
+
+        <section class="tarjeta" aria-labelledby="t-proy">
+          <h2 id="t-proy">Proyección</h2>
+          <div id="proyeccion"></div>
+        </section>
+
+        <section class="tarjeta" aria-labelledby="t-racha">
+          <h2 id="t-racha">Racha y constancia</h2>
+          <div id="racha"></div>
+        </section>
+
+        <button class="btn btn-secundario btn-bloque" id="btnCopiar" type="button">Copiar resumen para Claude</button>
+      </section>
+
+      <!-- ============ HISTORIAL ============ -->
+      <section id="vista-historial" class="vista" role="tabpanel" aria-labelledby="tab-historial" hidden>
+        <h2 class="titulo-vista">Historial</h2>
+        <p class="ayuda">Toca una semana para editarla o eliminarla.</p>
+        <ul class="lista-hist" id="listaHistorial"></ul>
+      </section>
+
+      <!-- ============ MEDIDAS ============ -->
+      <section id="vista-medidas" class="vista" role="tabpanel" aria-labelledby="tab-medidas" hidden>
+        <h2 class="titulo-vista">Medidas corporales</h2>
+        <div id="estadoMedidas"></div>
+
+        <form class="tarjeta" id="formMedidas" novalidate>
+          <h3>Nueva medición</h3>
+          <div class="campo">
+            <label for="m-fecha">Fecha</label>
+            <input type="date" id="m-fecha" required>
+          </div>
+          <div class="fila-3">
+            <div class="campo">
+              <label for="m-cintura">Cintura (cm)</label>
+              <input type="text" inputmode="decimal" id="m-cintura" autocomplete="off" placeholder="0,0">
+            </div>
+            <div class="campo">
+              <label for="m-abdomen">Abdomen (cm)</label>
+              <input type="text" inputmode="decimal" id="m-abdomen" autocomplete="off" placeholder="0,0">
+            </div>
+            <div class="campo">
+              <label for="m-pecho">Pecho (cm)</label>
+              <input type="text" inputmode="decimal" id="m-pecho" autocomplete="off" placeholder="0,0">
+            </div>
+          </div>
+          <p class="error" id="m-error" role="alert" hidden></p>
+          <button class="btn btn-bloque" type="submit">Guardar medidas</button>
+        </form>
+
+        <section class="tarjeta" aria-labelledby="t-tabla-med">
+          <h3 id="t-tabla-med">Registro</h3>
+          <div id="tablaMedidas"></div>
+        </section>
+      </section>
+
+      <!-- ============ AJUSTES ============ -->
+      <section id="vista-ajustes" class="vista" role="tabpanel" aria-labelledby="tab-ajustes" hidden>
+        <h2 class="titulo-vista">Ajustes</h2>
+
+        <form class="tarjeta" id="formAjustes" novalidate>
+          <h3>Plan</h3>
+          <div class="fila-2">
+            <div class="campo">
+              <label for="a-meta">Meta de peso (kg)</label>
+              <input type="text" inputmode="decimal" id="a-meta" autocomplete="off">
+            </div>
+            <div class="campo">
+              <label for="a-ritmo">Ritmo (kg/semana)</label>
+              <input type="text" inputmode="decimal" id="a-ritmo" autocomplete="off">
+            </div>
+          </div>
+          <p class="ayuda">Rango seguro recomendado: 0,5 a 1 kg por semana.</p>
+          <div class="fila-2">
+            <div class="campo">
+              <label for="a-altura">Altura (m)</label>
+              <input type="text" inputmode="decimal" id="a-altura" autocomplete="off">
+            </div>
+            <div class="campo">
+              <label for="a-dia">Día de pesaje</label>
+              <select id="a-dia">
+                <option value="1">Lunes</option><option value="2">Martes</option>
+                <option value="3">Miércoles</option><option value="4">Jueves</option>
+                <option value="5">Viernes</option><option value="6">Sábado</option>
+                <option value="0">Domingo</option>
+              </select>
+            </div>
+          </div>
+          <div class="fila-2">
+            <div class="campo">
+              <label for="a-inicio-fecha">Semana 0 (fecha)</label>
+              <input type="date" id="a-inicio-fecha">
+            </div>
+            <div class="campo">
+              <label for="a-inicio-peso">Peso semana 0 (kg)</label>
+              <input type="text" inputmode="decimal" id="a-inicio-peso" autocomplete="off">
+            </div>
+          </div>
+          <p class="error" id="a-error" role="alert" hidden></p>
+          <button class="btn btn-bloque" type="submit">Guardar ajustes</button>
+        </form>
+
+        <section class="tarjeta" aria-labelledby="t-resp">
+          <h3 id="t-resp">Respaldo de datos</h3>
+          <p class="recordatorio">📌 Haz un respaldo una vez al mes.</p>
+          <p class="ayuda" id="ultimoRespaldo"></p>
+          <button class="btn btn-bloque" type="button" id="btnExportar">Exportar datos (JSON)</button>
+          <label class="btn btn-secundario btn-bloque" for="archivoImportar" id="lblImportar" tabindex="0" role="button">Importar datos</label>
+          <input type="file" id="archivoImportar" accept=".json,application/json" class="visualmente-oculto">
+        </section>
+
+        <section class="tarjeta" aria-labelledby="t-peligro">
+          <h3 id="t-peligro">Zona de cuidado</h3>
+          <button class="btn btn-peligro btn-bloque" type="button" id="btnBorrarTodo">Borrar todos los datos</button>
+        </section>
+
+        <details class="tarjeta" id="herramientas">
+          <summary>Herramientas de prueba</summary>
+          <p class="ayuda">Carga 8 semanas de datos falsos para revisar gráfico, avisos y proyección. Tus datos reales se guardan aparte y se restauran al quitarlos.</p>
+          <button class="btn btn-secundario btn-bloque" type="button" id="btnDemo">Cargar datos de ejemplo</button>
+          <button class="btn btn-secundario btn-bloque" type="button" id="btnQuitarDemo" hidden>Quitar datos de ejemplo</button>
+        </details>
+
+        <p class="ayuda centrado">Ponci Tracker · uso personal · tus datos viven solo en este dispositivo.</p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Botón fijo inferior -->
+  <div class="barra-accion" id="barraAccion">
+    <button class="btn btn-bloque btn-grande" id="btnRegistrar" type="button">+ Registrar semana</button>
+  </div>
+
+  <!-- Hoja "Registrar semana" -->
+  <div class="fondo-hoja" id="fondoHoja" hidden></div>
+  <form class="hoja" id="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo" novalidate hidden>
+    <div class="hoja-asa" aria-hidden="true"></div>
+    <div class="hoja-cabecera">
+      <h2 id="hojaTitulo">Registrar semana</h2>
+      <button type="button" class="btn-icono" id="btnCerrarHoja" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div class="campo">
+      <label for="f-fecha">Fecha</label>
+      <input type="date" id="f-fecha" required>
+    </div>
+
+    <div class="campo">
+      <label for="f-peso">Peso (kg)</label>
+      <input type="text" inputmode="decimal" id="f-peso" autocomplete="off" placeholder="0,0" class="input-peso" aria-describedby="f-ref">
+      <p class="ayuda" id="f-ref" aria-live="polite"></p>
+    </div>
+
+    <fieldset class="campo grupo" id="g-workouts"><legend>Entrenos esta semana</legend><div class="opciones" data-campo="entrenos"></div></fieldset>
+
+    <div class="campo">
+      <label for="f-pasos">Pasos diarios promedio <span class="opcional">(opcional)</span></label>
+      <input type="text" inputmode="numeric" id="f-pasos" autocomplete="off" placeholder="Ej: 8000">
+    </div>
+
+    <fieldset class="campo grupo" id="g-plan"><legend>Cumplimiento del plan de comida</legend><div class="opciones" data-campo="plan"></div><p class="ayuda" id="f-plan-txt" aria-live="polite"></p></fieldset>
+
+    <fieldset class="campo grupo" id="g-late"><legend>Comí a deshoras (después de las 21:30)</legend><div class="opciones" data-campo="deshoras"></div></fieldset>
+
+    <fieldset class="campo grupo" id="g-sleep"><legend>Sueño promedio (horas)</legend><div class="opciones" data-campo="sueno"></div></fieldset>
+
+    <fieldset class="campo grupo" id="g-energy"><legend>Energía</legend><div class="opciones" data-campo="energia"></div><p class="ayuda" id="f-energy-txt" aria-live="polite"></p></fieldset>
+
+    <div class="campo">
+      <label for="f-notas">Notas <span class="opcional">(opcional)</span></label>
+      <textarea id="f-notas" rows="3" placeholder="Cómo te sentiste, qué pasó esta semana…"></textarea>
+    </div>
+
+    <p class="error" id="f-error" role="alert" hidden></p>
+
+    <div class="hoja-pie">
+      <button type="submit" class="btn btn-bloque btn-grande" id="btnGuardar">Guardar</button>
+      <button type="button" class="btn btn-peligro-suave btn-bloque" id="btnEliminar" hidden>Eliminar este registro</button>
+    </div>
+  </form>
+
+  <!-- Diálogo genérico (confirmaciones y mensajes) -->
+  <div class="fondo-dialogo" id="fondoDialogo" hidden>
+    <div class="dialogo" id="dialogo" role="alertdialog" aria-modal="true" aria-labelledby="dlgTitulo" aria-describedby="dlgTexto">
+      <h2 id="dlgTitulo"></h2>
+      <p id="dlgTexto"></p>
+      <div class="dialogo-botones" id="dlgBotones"></div>
+    </div>
+  </div>
+
+  <!-- Aviso breve (toast) -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
