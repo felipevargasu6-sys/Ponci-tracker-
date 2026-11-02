@@ -1,6 +1,6 @@
 # Ponci Tracker
 
-App web personal (PWA) para seguir peso y hábitos. HTML, CSS y JavaScript puro: sin frameworks, sin dependencias y sin build. Funciona sin internet y está pensada para iPhone (Safari) y computador.
+App web personal (PWA) para seguir el peso semanal (pesaje los miércoles en ayunas, con estimación de grasa corporal). HTML, CSS y JavaScript puro: sin frameworks, sin dependencias y sin build. Funciona sin internet y está pensada para iPhone (Safari) y computador.
 
 ## Archivos
 
@@ -32,6 +32,10 @@ python3 -m http.server 8000   # y abrir http://localhost:8000
 3. Ábrela desde el ícono: se ve a pantalla completa y funciona sin conexión.
 
 > Safari puede borrar los datos de sitios que no se abren por varios días. Instalada en la pantalla de inicio es mucho más segura, pero igual **haz un respaldo una vez al mes** (Ajustes → Exportar datos, o el botón de descarga arriba a la derecha).
+
+## Grasa corporal estimada
+
+Se calcula con altura, peso, edad y sexo (fórmula de Deurenberg). Es una estimación gruesa, con error de 4 a 5 puntos: sirve para ver la tendencia. Hay que elegir el sexo en Ajustes para que aparezca.
 
 ## Datos y respaldo
 

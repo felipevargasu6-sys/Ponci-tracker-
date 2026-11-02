@@ -33,7 +33,6 @@
     <nav class="tabs" role="tablist" aria-label="Secciones">
       <button role="tab" class="tab" data-vista="inicio" aria-selected="true" id="tab-inicio" aria-controls="vista-inicio">Inicio</button>
       <button role="tab" class="tab" data-vista="historial" aria-selected="false" id="tab-historial" aria-controls="vista-historial">Historial</button>
-      <button role="tab" class="tab" data-vista="medidas" aria-selected="false" id="tab-medidas" aria-controls="vista-medidas">Medidas</button>
       <button role="tab" class="tab" data-vista="ajustes" aria-selected="false" id="tab-ajustes" aria-controls="vista-ajustes">Ajustes</button>
     </nav>
 
@@ -43,8 +42,7 @@
       <!-- ============ INICIO ============ -->
       <section id="vista-inicio" class="vista" role="tabpanel" aria-labelledby="tab-inicio">
         <div id="bannerEstado"></div>
-        <div id="bannerMedidas"></div>
-        <div id="avisoInstalar"></div>
+                <div id="avisoInstalar"></div>
         <div id="avisoRespaldo"></div>
 
         <section class="tarjeta" aria-labelledby="t-resumen">
@@ -67,6 +65,11 @@
           </ul>
         </section>
 
+        <section class="tarjeta" aria-labelledby="t-grasa">
+          <h2 id="t-grasa">Grasa corporal estimada</h2>
+          <div id="grasa"></div>
+        </section>
+
         <section class="tarjeta" aria-labelledby="t-proy">
           <h2 id="t-proy">Proyección</h2>
           <div id="proyeccion"></div>
@@ -85,41 +88,6 @@
         <h2 class="titulo-vista">Historial</h2>
         <p class="ayuda">Toca una semana para editarla o eliminarla.</p>
         <ul class="lista-hist" id="listaHistorial"></ul>
-      </section>
-
-      <!-- ============ MEDIDAS ============ -->
-      <section id="vista-medidas" class="vista" role="tabpanel" aria-labelledby="tab-medidas" hidden>
-        <h2 class="titulo-vista">Medidas corporales</h2>
-        <div id="estadoMedidas"></div>
-
-        <form class="tarjeta" id="formMedidas" novalidate>
-          <h3>Nueva medición</h3>
-          <div class="campo">
-            <label for="m-fecha">Fecha</label>
-            <input type="date" id="m-fecha" required>
-          </div>
-          <div class="fila-3">
-            <div class="campo">
-              <label for="m-cintura">Cintura (cm)</label>
-              <input type="text" inputmode="decimal" id="m-cintura" autocomplete="off" placeholder="0,0">
-            </div>
-            <div class="campo">
-              <label for="m-abdomen">Abdomen (cm)</label>
-              <input type="text" inputmode="decimal" id="m-abdomen" autocomplete="off" placeholder="0,0">
-            </div>
-            <div class="campo">
-              <label for="m-pecho">Pecho (cm)</label>
-              <input type="text" inputmode="decimal" id="m-pecho" autocomplete="off" placeholder="0,0">
-            </div>
-          </div>
-          <p class="error" id="m-error" role="alert" hidden></p>
-          <button class="btn btn-bloque" type="submit">Guardar medidas</button>
-        </form>
-
-        <section class="tarjeta" aria-labelledby="t-tabla-med">
-          <h3 id="t-tabla-med">Registro</h3>
-          <div id="tablaMedidas"></div>
-        </section>
       </section>
 
       <!-- ============ AJUSTES ============ -->
@@ -152,6 +120,20 @@
                 <option value="5">Viernes</option><option value="6">Sábado</option>
                 <option value="0">Domingo</option>
               </select>
+            </div>
+          </div>
+          <div class="fila-2">
+            <div class="campo">
+              <label for="a-sexo">Sexo (para estimar grasa)</label>
+              <select id="a-sexo">
+                <option value="">Sin definir</option>
+                <option value="h">Hombre</option>
+                <option value="m">Mujer</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="a-edad">Edad</label>
+              <input type="text" inputmode="numeric" id="a-edad" autocomplete="off">
             </div>
           </div>
           <div class="fila-2">
@@ -218,21 +200,6 @@
       <input type="text" inputmode="decimal" id="f-peso" autocomplete="off" placeholder="0,0" class="input-peso" aria-describedby="f-ref">
       <p class="ayuda" id="f-ref" aria-live="polite"></p>
     </div>
-
-    <fieldset class="campo grupo" id="g-workouts"><legend>Entrenos esta semana</legend><div class="opciones" data-campo="entrenos"></div></fieldset>
-
-    <div class="campo">
-      <label for="f-pasos">Pasos diarios promedio <span class="opcional">(opcional)</span></label>
-      <input type="text" inputmode="numeric" id="f-pasos" autocomplete="off" placeholder="Ej: 8000">
-    </div>
-
-    <fieldset class="campo grupo" id="g-plan"><legend>Cumplimiento del plan de comida</legend><div class="opciones" data-campo="plan"></div><p class="ayuda" id="f-plan-txt" aria-live="polite"></p></fieldset>
-
-    <fieldset class="campo grupo" id="g-late"><legend>Comí a deshoras (después de las 21:30)</legend><div class="opciones" data-campo="deshoras"></div></fieldset>
-
-    <fieldset class="campo grupo" id="g-sleep"><legend>Sueño promedio (horas)</legend><div class="opciones" data-campo="sueno"></div></fieldset>
-
-    <fieldset class="campo grupo" id="g-energy"><legend>Energía</legend><div class="opciones" data-campo="energia"></div><p class="ayuda" id="f-energy-txt" aria-live="polite"></p></fieldset>
 
     <div class="campo">
       <label for="f-notas">Notas <span class="opcional">(opcional)</span></label>

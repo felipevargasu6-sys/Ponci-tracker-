@@ -86,26 +86,16 @@
   /** Datos precargados la primera vez. */
   function datosIniciales() {
     return {
-      version: 1,
+      version: 2,
       perfil: { nombre: 'Ponci', edad: 22 },
-      ajustes: { meta: 85, ritmo: 0.75, altura: 1.8, diaPesaje: 2, inicioFecha: '2026-10-26', inicioPeso: 108 },
-      registros: [{
-        id: nuevoId(), fecha: '2026-10-26', peso: 108,
-        entrenos: null, pasos: null, plan: null, deshoras: null, sueno: null, energia: null, notas: '',
-      }],
-      medidas: [],
+      ajustes: { meta: 85, ritmo: 0.75, altura: 1.8, diaPesaje: 3, inicioFecha: '2026-10-29', inicioPeso: 102.3, sexo: null },
+      registros: [{ id: nuevoId(), fecha: '2026-10-29', peso: 102.3, notas: '' }],
       ui: { instalarCerrado: false, ultimoRespaldo: null, demo: null },
     };
   }
 
   function nuevoId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  }
-
-  /** Número finito dentro de un rango o null. */
-  function numOpcional(v, min, max) {
-    const n = typeof v === 'number' ? v : NaN;
-    return Number.isFinite(n) && n >= min && n <= max ? n : null;
   }
 
   /**
@@ -129,27 +119,18 @@
       return {
         id: typeof r.id === 'string' ? r.id : nuevoId(),
         fecha: r.fecha, peso: r.peso,
-        entrenos: numOpcional(r.entrenos, 0, 14),
-        pasos: numOpcional(r.pasos, 0, 100000),
-        plan: numOpcional(r.plan, 1, 5),
-        deshoras: ['nunca', '1-2', 'varias'].includes(r.deshoras) ? r.deshoras : null,
-        sueno: numOpcional(r.sueno, 0, 24),
-        energia: numOpcional(r.energia, 1, 5),
         notas: typeof r.notas === 'string' ? r.notas.slice(0, 2000) : '',
       };
     });
-    const medidas = (Array.isArray(bruto.medidas) ? bruto.medidas : [])
-      .filter((m) => m && fechaValida(m.fecha))
-      .map((m) => ({
-        id: typeof m.id === 'string' ? m.id : nuevoId(), fecha: m.fecha,
-        cintura: numOpcional(m.cintura, 20, 250), abdomen: numOpcional(m.abdomen, 20, 250), pecho: numOpcional(m.pecho, 20, 250),
-      }));
+    if (!['h', 'm'].includes(aj.sexo)) aj.sexo = null;
+    const perfil = { ...base.perfil, ...(bruto.perfil || {}) };
+    if (!Number.isFinite(perfil.edad) || perfil.edad < 14 || perfil.edad > 100) perfil.edad = base.perfil.edad;
+    // Los respaldos antiguos pueden traer medidas y hábitos: se ignoran.
     return {
-      version: 1,
-      perfil: { ...base.perfil, ...(bruto.perfil || {}) },
+      version: 2,
+      perfil,
       ajustes: aj,
       registros,
-      medidas,
       ui: { ...base.ui, ...(bruto.ui || {}) },
     };
   }
@@ -158,7 +139,11 @@
     try {
       const crudo = localStorage.getItem(CLAVE);
       if (!crudo) return null;
-      return normalizar(JSON.parse(crudo));
+      const bruto = JSON.parse(crudo);
+      // Versión anterior sin cambios (solo la semana 0 de ejemplo): se reemplaza por los datos iniciales nuevos.
+      const r0 = Array.isArray(bruto.registros) ? bruto.registros : [];
+      if ((bruto.version || 1) < 2 && r0.length === 1 && r0[0].fecha === '2026-10-26' && r0[0].peso === 108) return null;
+      return normalizar(bruto);
     } catch (e) {
       // Datos ilegibles: se conserva una copia para no perderlos y se parte de cero.
       try { localStorage.setItem(CLAVE + ':corrupto', localStorage.getItem(CLAVE) || ''); } catch (e2) { /* sin acceso */ }
@@ -214,6 +199,18 @@
     if (v < 25) return 'Normal';
     if (v < 30) return 'Sobrepeso';
     return 'Obesidad';
+  }
+
+  /**
+   * Grasa corporal estimada con la fórmula de Deurenberg (IMC, edad y sexo).
+   * Es una estimación gruesa (error típico de ±4 a 5 puntos): sirve para ver la tendencia.
+   */
+  function grasaCorporal(peso) {
+    const sexo = S.ajustes.sexo;
+    if (!sexo) return null;
+    const pct = 1.2 * imc(peso) + 0.23 * S.perfil.edad - 10.8 * (sexo === 'h' ? 1 : 0) - 5.4;
+    const porcentaje = Math.min(60, Math.max(3, pct));
+    return { pct: porcentaje, kgGrasa: (peso * porcentaje) / 100, kgMagra: peso - (peso * porcentaje) / 100 };
   }
 
   /**
@@ -295,21 +292,6 @@
       html = '<div class="banner banner-durazno" style="margin-bottom:14px"><strong>Modo ejemplo activo</strong><p>Estás viendo datos falsos. Quítalos en Ajustes → Herramientas de prueba.</p></div>' + html;
     }
     $('#bannerEstado').innerHTML = html;
-  }
-
-  /** Aviso de medición si han pasado 28 días o más desde la última. */
-  function diasDesdeUltimaMedida() {
-    if (!S.medidas.length) return null;
-    const ultima = [...S.medidas].sort((a, b) => a.fecha.localeCompare(b.fecha)).pop();
-    return dias(hoy()) - dias(ultima.fecha);
-  }
-
-  function renderBannerMedidas() {
-    const d = diasDesdeUltimaMedida();
-    $('#bannerMedidas').innerHTML = d !== null && d >= 28
-      ? `<div class="banner banner-durazno"><strong>Toca medirte</strong><p>Han pasado ${d} días desde tu última medición (se mide cada 28 días).</p>
-         <button class="btn btn-bloque" type="button" data-accion="ir-medidas">Ir a Medidas</button></div>`
-      : '';
   }
 
   function estaInstalada() {
@@ -401,15 +383,36 @@
       </div>${etiqueta}`;
   }
 
+  /** Tarjeta de grasa corporal estimada. */
+  function renderGrasa(lista) {
+    const caja = $('#grasa');
+    const actual = lista.length ? lista[lista.length - 1].peso : S.ajustes.inicioPeso;
+    const g = grasaCorporal(actual);
+    if (!g) {
+      caja.innerHTML = `<p>Para estimar tu % de grasa necesito tu sexo (la fórmula es distinta para hombres y mujeres).</p>
+        <button class="btn btn-secundario btn-bloque" type="button" data-accion="ir-ajustes">Elegir en Ajustes</button>`;
+      return;
+    }
+    const inicial = grasaCorporal(S.ajustes.inicioPeso);
+    const cambio = g.pct - inicial.pct;
+    caja.innerHTML = `<div class="cifras">
+        <div class="cifra"><div class="rotulo">Grasa estimada</div><div class="valor">${num(g.pct)} <small>%</small></div>
+          <div class="sub">${lista.length > 1 ? `${conSigno(cambio)} pts desde el inicio` : 'Punto de partida'}</div></div>
+        <div class="cifra"><div class="rotulo">Masa grasa</div><div class="valor">${num(g.kgGrasa)} <small>kg</small></div></div>
+      </div>
+      <p class="ayuda">Masa magra aprox.: ${num(g.kgMagra)} kg. Es una estimación con altura, peso, edad y sexo (fórmula de Deurenberg): puede equivocarse en 4 o 5 puntos. Úsala para ver la tendencia, no como cifra exacta.</p>`;
+  }
+
   function renderRacha(lista) {
-    const ultimas = lista.slice(-4);
-    const entrenos = promedio(ultimas.map((r) => r.entrenos).filter((v) => v !== null));
-    const plan = promedio(ultimas.map((r) => r.plan).filter((v) => v !== null));
+    const a = S.ajustes;
+    const ultimo = lista[lista.length - 1];
+    const semanas = ultimo ? (dias(ultimo.fecha) - dias(a.inicioFecha)) / 7 : 0;
+    const porSemana = ultimo && semanas >= 1 ? (a.inicioPeso - ultimo.peso) / semanas : null;
     const racha = rachaSemanas(lista);
     $('#racha').innerHTML = `<div class="filas">
       <div><span class="k">Semanas seguidas registradas</span><span class="v">${racha} ${racha === 1 ? 'semana' : 'semanas'}${racha >= 3 ? ' 🔥' : ''}</span></div>
-      <div><span class="k">Entrenos por semana<br>(últimas 4)</span><span class="v">${entrenos === null ? '—' : num(entrenos)}</span></div>
-      <div><span class="k">Cumplimiento del plan<br>(últimas 4)</span><span class="v">${plan === null ? '—' : num(plan) + ' / 5'}</span></div>
+      <div><span class="k">Registros en total</span><span class="v">${lista.length}</span></div>
+      <div><span class="k">Pérdida promedio<br>desde el inicio</span><span class="v">${porSemana === null ? '—' : `${numNeg(porSemana, 2)} kg/sem`}</span></div>
     </div>`;
   }
 
@@ -519,11 +522,8 @@
   }
 
   /* =====================================================================
-     6. RENDER — HISTORIAL, MEDIDAS Y AJUSTES
+     6. RENDER — HISTORIAL Y AJUSTES
      ===================================================================== */
-  const ETIQUETA_DESHORAS = { nunca: 'Nunca', '1-2': '1-2 veces', varias: 'Varias veces' };
-  const textoEntrenos = (v) => (v === null ? '—' : v >= 4 ? '4+' : String(v));
-  const textoSueno = (v) => (v === null ? 's/d' : v >= 8 ? '8+' : String(v));
 
   function claseVariacion(v) {
     if (v < -0.05) return 'var-baja';
@@ -543,34 +543,10 @@
           <div class="var ${previo === null ? 'var-igual' : claseVariacion(previo)}">${previo === null ? '—' : conSigno(previo) + ' kg'}</div></div>
         <div class="fh-datos">
           <span>Prom. 3 sem<b>${num(promedioMovil(lista, i))} kg</b></span>
-          <span>Entrenos<b>${textoEntrenos(r.entrenos)}</b></span>
-          <span>Plan<b>${r.plan === null ? '—' : r.plan + '/5'}</b></span>
+          <span>Ruta ideal<b>${num(pesoIdeal(r.fecha))} kg</b></span>
         </div>
         ${r.notas ? `<div class="fh-notas">${esc(r.notas)}</div>` : ''}
       </button></li>`).join('');
-  }
-
-  function renderMedidas() {
-    const lista = [...S.medidas].sort((a, b) => a.fecha.localeCompare(b.fecha));
-    const d = diasDesdeUltimaMedida();
-    let estado;
-    if (d === null) estado = '<div class="banner banner-durazno"><strong>Aún no tienes mediciones</strong><p>Mídete cada 4 semanas, a la misma hora y sin apretar la huincha.</p></div>';
-    else if (d >= 28) estado = `<div class="banner banner-durazno"><strong>Toca medirte</strong><p>Han pasado ${d} días desde la última medición.</p></div>`;
-    else estado = `<div class="banner banner-verde"><strong>Medición al día</strong><p>Próxima medición en ${28 - d} ${28 - d === 1 ? 'día' : 'días'} (${fechaCL(sumarDias(hoy(), 28 - d))}).</p></div>`;
-    $('#estadoMedidas').innerHTML = estado;
-
-    const caja = $('#tablaMedidas');
-    if (!lista.length) { caja.innerHTML = '<p class="vacio">Sin mediciones todavía.</p>'; return; }
-    const primera = lista[0];
-    const celda = (m, k, i) => {
-      if (m[k] === null) return '<td>—</td>';
-      const v = i > 0 && primera[k] !== null ? `<small>${conSigno(m[k] - primera[k])}</small>` : (i === 0 ? '<small>base</small>' : '');
-      return `<td>${num(m[k])}${v}</td>`;
-    };
-    caja.innerHTML = `<table><thead><tr><th scope="col">Fecha</th><th scope="col">Cintura</th><th scope="col">Abdomen</th><th scope="col">Pecho</th><th scope="col"><span class="visualmente-oculto">Eliminar</span></th></tr></thead>
-      <tbody>${lista.map((m, i) => `<tr><td>${fechaCL(m.fecha)}</td>${celda(m, 'cintura', i)}${celda(m, 'abdomen', i)}${celda(m, 'pecho', i)}
-        <td><button class="btn-mini" type="button" data-medida="${esc(m.id)}" aria-label="Eliminar medición del ${fechaCL(m.fecha)}">🗑</button></td></tr>`).join('')}</tbody></table>
-      <p class="ayuda">Medidas en cm. Debajo de cada valor: variación respecto a la primera medición.</p>`;
   }
 
   function renderAjustes() {
@@ -581,6 +557,8 @@
     $('#a-dia').value = String(a.diaPesaje);
     $('#a-inicio-fecha').value = a.inicioFecha;
     $('#a-inicio-peso').value = num(a.inicioPeso);
+    $('#a-sexo').value = a.sexo || '';
+    $('#a-edad').value = String(S.perfil.edad);
     $('#ultimoRespaldo').textContent = S.ui.ultimoRespaldo
       ? `Último respaldo: ${fechaCL(S.ui.ultimoRespaldo)}`
       : 'Aún no has hecho un respaldo.';
@@ -592,14 +570,13 @@
     const lista = ordenados();
     renderEncabezado();
     renderBanner(lista);
-    renderBannerMedidas();
     renderAvisosDiscretos();
     renderResumen(lista);
     renderProgreso(lista);
     renderProyeccion(lista);
+    renderGrasa(lista);
     renderRacha(lista);
     renderHistorial(lista);
-    renderMedidas();
     renderAjustes();
     dibujarGrafico();
   }
@@ -660,58 +637,8 @@
   /* =====================================================================
      8. FORMULARIO "REGISTRAR SEMANA"
      ===================================================================== */
-  const OPCIONES = {
-    entrenos: [0, 1, 2, 3, 4].map((v) => ({ v, t: v === 4 ? '4+' : String(v) })),
-    plan: [
-      { v: 1, t: '1', e: '😣', d: 'Me descontrolé' }, { v: 2, t: '2', e: '😕', d: 'Me costó mucho' },
-      { v: 3, t: '3', e: '😐', d: 'Más o menos' }, { v: 4, t: '4', e: '🙂', d: 'Bastante bien' },
-      { v: 5, t: '5', e: '🤩', d: 'Perfecto' },
-    ],
-    deshoras: [{ v: 'nunca', t: 'Nunca' }, { v: '1-2', t: '1-2 veces' }, { v: 'varias', t: 'Varias veces' }],
-    sueno: [5, 6, 7, 8].map((v) => ({ v, t: v === 8 ? '8+' : String(v) })),
-    energia: [
-      { v: 1, t: '1', e: '🪫', d: 'Sin energía' }, { v: 2, t: '2', e: '😴', d: 'Baja' },
-      { v: 3, t: '3', e: '😊', d: 'Normal' }, { v: 4, t: '4', e: '💪', d: 'Buena' },
-      { v: 5, t: '5', e: '⚡', d: 'A tope' },
-    ],
-  };
-  const AYUDA_PLAN = '1 = Me descontrolé · 3 = Más o menos · 5 = Perfecto';
-  const AYUDA_ENERGIA = '1 = Sin energía · 5 = A tope';
-
-  let F = null; // valores de los selectores del formulario abierto
   let editandoId = null;
   let elementoPrevio = null;
-
-  function construirSelectores() {
-    $$('.opciones[data-campo]').forEach((caja) => {
-      const campo = caja.dataset.campo;
-      const grupo = caja.closest('fieldset');
-      caja.setAttribute('role', 'group');
-      caja.setAttribute('aria-label', $('legend', grupo).textContent);
-      caja.innerHTML = OPCIONES[campo].map((o) => `<button type="button" class="opt" data-valor="${esc(o.v)}" aria-pressed="false"${o.d ? ` aria-label="${esc(o.t)}: ${esc(o.d)}"` : ''}>
-        ${o.e ? `<span class="emoji" aria-hidden="true">${o.e}</span>` : ''}<span>${esc(o.t)}</span></button>`).join('');
-      caja.addEventListener('click', (ev) => {
-        const b = ev.target.closest('.opt');
-        if (!b) return;
-        const op = OPCIONES[campo].find((o) => String(o.v) === b.dataset.valor);
-        F[campo] = F[campo] === op.v ? null : op.v; // volver a tocar deselecciona
-        pintarSelectores();
-      });
-    });
-  }
-
-  function pintarSelectores() {
-    $$('.opciones[data-campo]').forEach((caja) => {
-      const campo = caja.dataset.campo;
-      $$('.opt', caja).forEach((b) => {
-        b.setAttribute('aria-pressed', String(F[campo] !== null && String(F[campo]) === b.dataset.valor));
-      });
-    });
-    const dPlan = OPCIONES.plan.find((o) => o.v === F.plan);
-    $('#f-plan-txt').textContent = dPlan ? `${dPlan.t}/5 · ${dPlan.d}` : AYUDA_PLAN;
-    const dEn = OPCIONES.energia.find((o) => o.v === F.energia);
-    $('#f-energy-txt').textContent = dEn ? `${dEn.t}/5 · ${dEn.d}` : AYUDA_ENERGIA;
-  }
 
   /** Registro anterior a una fecha (ignorando el que se está editando). */
   function registroAnterior(fecha) {
@@ -736,19 +663,13 @@
   function abrirHoja(id = null) {
     editandoId = id;
     const r = id ? S.registros.find((x) => x.id === id) : null;
-    F = {
-      entrenos: r ? r.entrenos : null, plan: r ? r.plan : null, deshoras: r ? r.deshoras : null,
-      sueno: r ? r.sueno : null, energia: r ? r.energia : null,
-    };
     $('#hojaTitulo').textContent = r ? 'Editar registro' : 'Registrar semana';
     $('#f-fecha').value = r ? r.fecha : hoy();
     $('#f-fecha').max = '2100-12-31';
     $('#f-peso').value = r ? num(r.peso) : '';
-    $('#f-pasos').value = r && r.pasos !== null ? String(r.pasos) : '';
     $('#f-notas').value = r ? r.notas : '';
     $('#btnEliminar').hidden = !r;
     mostrarError('#f-error', '');
-    pintarSelectores();
     actualizarReferencia();
 
     elementoPrevio = document.activeElement;
@@ -798,7 +719,6 @@
     ev.preventDefault();
     const fecha = $('#f-fecha').value;
     const peso = leerNumero($('#f-peso').value);
-    const pasos = leerNumero($('#f-pasos').value);
 
     // Validaciones
     if (!fechaValida(fecha)) return mostrarError('#f-error', 'Elige una fecha válida.');
@@ -806,9 +726,6 @@
     if (peso === null || Number.isNaN(peso) || peso < PESO_MIN || peso > PESO_MAX) {
       $('#f-peso').focus();
       return mostrarError('#f-error', `Ingresa un peso entre ${PESO_MIN} y ${PESO_MAX} kg (ej: 104,6).`);
-    }
-    if (Number.isNaN(pasos) || (pasos !== null && (pasos > 100000 || !Number.isInteger(pasos)))) {
-      return mostrarError('#f-error', 'Los pasos deben ser un número entero entre 0 y 100.000.');
     }
     mostrarError('#f-error', '');
 
@@ -824,7 +741,6 @@
 
     const nuevo = {
       id: editandoId || nuevoId(), fecha, peso,
-      entrenos: F.entrenos, pasos, plan: F.plan, deshoras: F.deshoras, sueno: F.sueno, energia: F.energia,
       notas: $('#f-notas').value.trim(),
     };
     const i = S.registros.findIndex((r) => r.id === nuevo.id);
@@ -858,40 +774,8 @@
   }
 
   /* =====================================================================
-     9. MEDIDAS Y AJUSTES (formularios)
+     9. AJUSTES (formulario)
      ===================================================================== */
-  function guardarMedidas(ev) {
-    ev.preventDefault();
-    const fecha = $('#m-fecha').value;
-    const v = { cintura: leerNumero($('#m-cintura').value), abdomen: leerNumero($('#m-abdomen').value), pecho: leerNumero($('#m-pecho').value) };
-    if (!fechaValida(fecha) || fecha > hoy()) return mostrarError('#m-error', 'Elige una fecha válida (no futura).');
-    const valores = Object.values(v);
-    if (valores.every((x) => x === null)) return mostrarError('#m-error', 'Ingresa al menos una medida.');
-    if (valores.some((x) => x !== null && (Number.isNaN(x) || x < 20 || x > 250))) {
-      return mostrarError('#m-error', 'Las medidas deben estar entre 20 y 250 cm.');
-    }
-    mostrarError('#m-error', '');
-    const existente = S.medidas.find((m) => m.fecha === fecha);
-    if (existente) Object.assign(existente, v);
-    else S.medidas.push({ id: nuevoId(), fecha, ...v });
-    guardar();
-    renderTodo();
-    ['#m-cintura', '#m-abdomen', '#m-pecho'].forEach((s) => { $(s).value = ''; });
-    toast('Medidas guardadas ✔');
-    return null;
-  }
-
-  async function eliminarMedida(id) {
-    const m = S.medidas.find((x) => x.id === id);
-    if (!m) return;
-    const ok = await confirmar('¿Eliminar medición?', `Se borrará la medición del ${fechaCL(m.fecha)}.`, 'Eliminar', true);
-    if (!ok) return;
-    S.medidas = S.medidas.filter((x) => x.id !== id);
-    guardar();
-    renderTodo();
-    toast('Medición eliminada');
-  }
-
   function guardarAjustes(ev) {
     ev.preventDefault();
     const meta = leerNumero($('#a-meta').value);
@@ -900,16 +784,20 @@
     const inicioPeso = leerNumero($('#a-inicio-peso').value);
     const inicioFecha = $('#a-inicio-fecha').value;
     if (altura !== null && altura > 3) altura /= 100; // si escribe 180, se interpreta como cm
+    const edad = leerNumero($('#a-edad').value);
+    const sexo = $('#a-sexo').value;
 
     if (meta === null || Number.isNaN(meta) || meta < PESO_MIN || meta > PESO_MAX) return mostrarError('#a-error', `La meta debe estar entre ${PESO_MIN} y ${PESO_MAX} kg.`);
     if (ritmo === null || Number.isNaN(ritmo) || ritmo <= 0 || ritmo > 2) return mostrarError('#a-error', 'El ritmo debe ser mayor que 0 y hasta 2 kg por semana.');
     if (altura === null || Number.isNaN(altura) || altura < 1.2 || altura > 2.3) return mostrarError('#a-error', 'La altura debe estar entre 1,20 y 2,30 m.');
     if (inicioPeso === null || Number.isNaN(inicioPeso) || inicioPeso < PESO_MIN || inicioPeso > PESO_MAX) return mostrarError('#a-error', 'El peso de la semana 0 no es válido.');
     if (!fechaValida(inicioFecha)) return mostrarError('#a-error', 'La fecha de la semana 0 no es válida.');
+    if (edad === null || Number.isNaN(edad) || !Number.isInteger(edad) || edad < 14 || edad > 100) return mostrarError('#a-error', 'La edad debe ser un número entero entre 14 y 100.');
     if (meta >= inicioPeso) return mostrarError('#a-error', 'La meta debe ser menor que el peso de la semana 0.');
     mostrarError('#a-error', '');
 
-    S.ajustes = { meta, ritmo, altura, diaPesaje: Number($('#a-dia').value), inicioFecha, inicioPeso };
+    S.ajustes = { meta, ritmo, altura, diaPesaje: Number($('#a-dia').value), inicioFecha, inicioPeso, sexo: sexo || null };
+    S.perfil.edad = edad;
     guardar();
     renderTodo();
     toast(ritmo < 0.5 || ritmo > 1 ? 'Guardado. Ojo: el rango seguro es 0,5 a 1 kg/sem' : 'Ajustes guardados ✔');
@@ -926,24 +814,13 @@
     const r = lista[i];
     const previo = i > 0 ? r.peso - lista[i - 1].peso : null;
     const perdido = S.ajustes.inicioPeso - r.peso;
-    const dato = (v, f) => (v === null ? 's/d' : f(v));
-    let t = `Check-in semanal — ${fechaCL(r.fecha)}. `
+    const g = grasaCorporal(r.peso);
+    return `Check-in semanal — ${fechaCL(r.fecha)}. `
       + `Peso: ${num(r.peso)} kg (variación ${previo === null ? 's/d' : conSigno(previo) + ' kg'}; total perdido ${numNeg(perdido)} kg). `
       + `Promedio móvil 3 sem: ${num(promedioMovil(lista, i))} kg. `
-      + `Entrenos: ${dato(r.entrenos, textoEntrenos)}. `
-      + `Pasos promedio: ${dato(r.pasos, (v) => v.toLocaleString('es-CL'))}. `
-      + `Cumplimiento plan: ${dato(r.plan, (v) => v + '/5')}. `
-      + `Comidas a deshoras: ${dato(r.deshoras, (v) => ETIQUETA_DESHORAS[v])}. `
-      + `Sueño: ${dato(r.sueno, (v) => textoSueno(v) + ' h')}. `
-      + `Energía: ${dato(r.energia, (v) => v + '/5')}. `
+      + `IMC: ${num(imc(r.peso))}. `
+      + (g ? `Grasa corporal estimada: ${num(g.pct)} % (aprox.). ` : '')
       + `Notas: ${r.notas ? r.notas.replace(/\s+/g, ' ') : '—'}`;
-    const conCintura = [...S.medidas].filter((m) => m.cintura !== null).sort((a, b) => a.fecha.localeCompare(b.fecha));
-    if (conCintura.length) {
-      const ult = conCintura[conCintura.length - 1];
-      const var0 = conCintura.length > 1 ? ` (${conSigno(ult.cintura - conCintura[0].cintura)} cm vs. primera medición)` : '';
-      t += `\nCintura: ${num(ult.cintura)} cm${var0}, medida el ${fechaCL(ult.fecha)}.`;
-    }
-    return t;
   }
 
   async function copiarTexto(texto) {
@@ -997,7 +874,7 @@
     try {
       const nuevo = normalizar(JSON.parse(await archivo.text()));
       const ok = await confirmar('¿Restaurar este respaldo?',
-        `El archivo tiene ${nuevo.registros.length} registros y ${nuevo.medidas.length} mediciones. Reemplazará todos los datos actuales.`, 'Restaurar', true);
+        `El archivo tiene ${nuevo.registros.length} registros de peso. Reemplazará todos los datos actuales.`, 'Restaurar', true);
       if (!ok) return;
       S = nuevo;
       guardar();
@@ -1009,9 +886,9 @@
   }
 
   async function borrarTodo() {
-    const ok1 = await confirmar('¿Borrar todos los datos?', 'Se eliminarán todos tus registros y medidas. Te recomiendo exportar un respaldo antes.', 'Continuar', true);
+    const ok1 = await confirmar('¿Borrar todos los datos?', 'Se eliminarán todos tus registros. Te recomiendo exportar un respaldo antes.', 'Continuar', true);
     if (!ok1) return;
-    const ok2 = await confirmar('Última confirmación', 'Esto no se puede deshacer. La app volverá al estado inicial (semana 0, 108,0 kg).', 'Sí, borrar todo', true);
+    const ok2 = await confirmar('Última confirmación', 'Esto no se puede deshacer. La app volverá al estado inicial (semana 0, 102,3 kg el 29-10-2026).', 'Sí, borrar todo', true);
     if (!ok2) return;
     S = datosIniciales();
     guardar();
@@ -1025,22 +902,13 @@
     const ok = await confirmar('¿Cargar datos de ejemplo?', 'Tus datos reales se guardan aparte y se restauran al quitar el ejemplo.', 'Cargar ejemplo');
     if (!ok) return;
     const inicio = sumarDias(hoy(), -58); // el último registro queda 2 días atrás
-    const pesos = [108, 107.4, 106.5, 105.9, 105.8, 104.7, 104.1, 103.6, 102.9];
-    const ent = [null, 2, 3, 3, 1, 3, 4, 3, 3];
-    const plan = [null, 3, 4, 4, 2, 4, 5, 4, 4];
-    const respaldo = { registros: S.registros, medidas: S.medidas, ajustes: S.ajustes };
-    S.ui.demo = respaldo;
-    S.ajustes = { ...S.ajustes, inicioFecha: inicio, inicioPeso: 108 };
+    const pesos = [102.3, 101.7, 100.9, 100.4, 100.5, 99.5, 98.9, 98.5, 97.8];
+    S.ui.demo = { registros: S.registros, ajustes: S.ajustes, edad: S.perfil.edad };
+    S.ajustes = { ...S.ajustes, inicioFecha: inicio, inicioPeso: pesos[0], sexo: S.ajustes.sexo || 'h' };
     S.registros = pesos.map((p, k) => ({
       id: nuevoId(), fecha: sumarDias(inicio, k * 7), peso: p,
-      entrenos: ent[k], pasos: k ? 7000 + k * 400 : null, plan: plan[k],
-      deshoras: k ? (k % 3 === 0 ? '1-2' : 'nunca') : null, sueno: k ? 6 + (k % 3) : null, energia: k ? 3 + (k % 3 === 0 ? 1 : 0) : null,
-      notas: k === 4 ? 'Semana de cumpleaños, comí de más.' : '',
+      notas: k === 4 ? 'Semana de cumpleaños.' : '',
     }));
-    S.medidas = [
-      { id: nuevoId(), fecha: sumarDias(inicio, 7), cintura: 104, abdomen: 110, pecho: 112 },
-      { id: nuevoId(), fecha: sumarDias(inicio, 28), cintura: 101.5, abdomen: 107, pecho: 110.5 },
-    ];
     guardar();
     renderTodo();
     cambiarVista('inicio');
@@ -1053,8 +921,8 @@
     if (!ok) return;
     const real = S.ui.demo;
     S.registros = real.registros;
-    S.medidas = real.medidas;
     S.ajustes = real.ajustes;
+    if (real.edad) S.perfil.edad = real.edad;
     S.ui.demo = null;
     guardar();
     renderTodo();
@@ -1077,7 +945,6 @@
     $('#barraAccion').hidden = !(nombre === 'inicio' || nombre === 'historial');
     window.scrollTo(0, 0);
     if (nombre === 'inicio') dibujarGrafico();
-    if (nombre === 'medidas' && !$('#m-fecha').value) $('#m-fecha').value = hoy();
   }
 
   function manejarAcciones(ev) {
@@ -1085,7 +952,7 @@
     if (!b) return;
     const accion = b.dataset.accion;
     if (accion === 'registrar') abrirHoja();
-    else if (accion === 'ir-medidas') cambiarVista('medidas');
+    else if (accion === 'ir-ajustes') cambiarVista('ajustes');
     else if (accion === 'exportar') exportarDatos();
     else if (accion === 'cerrar-instalar') { S.ui.instalarCerrado = true; guardar(); renderAvisosDiscretos(); }
   }
@@ -1110,10 +977,6 @@
       const fila = ev.target.closest('.fila-hist');
       if (fila) abrirHoja(fila.dataset.id);
     });
-    $('#tablaMedidas').addEventListener('click', (ev) => {
-      const b = ev.target.closest('[data-medida]');
-      if (b) eliminarMedida(b.dataset.medida);
-    });
 
     // Hoja de registro
     $('#hoja').addEventListener('submit', guardarRegistro);
@@ -1123,8 +986,7 @@
     $('#f-peso').addEventListener('input', actualizarReferencia);
     $('#f-fecha').addEventListener('change', actualizarReferencia);
 
-    // Medidas y ajustes
-    $('#formMedidas').addEventListener('submit', guardarMedidas);
+    // Ajustes
     $('#formAjustes').addEventListener('submit', guardarAjustes);
     $('#btnExportar').addEventListener('click', exportarDatos);
     $('#archivoImportar').addEventListener('change', (ev) => { importarDatos(ev.target.files[0]); ev.target.value = ''; });
@@ -1168,8 +1030,6 @@
      ===================================================================== */
   function iniciar() {
     S = cargar() || datosIniciales();
-    construirSelectores();
-    F = { entrenos: null, plan: null, deshoras: null, sueno: null, energia: null };
     iniciarEventos();
     guardar(); // deja guardados los datos iniciales la primera vez
     pedirPersistencia();

@@ -1,5 +1,5 @@
 /* Ponci Tracker — service worker: guarda los archivos de la app para usarla sin internet. */
-const VERSION = 'ponci-tracker-v1';
+const VERSION = 'ponci-tracker-v2';
 const ARCHIVOS = [
   './',
   'index.html',
