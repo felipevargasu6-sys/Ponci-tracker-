@@ -89,7 +89,10 @@
       version: 2,
       perfil: { nombre: 'Ponci', edad: 22 },
       ajustes: { meta: 85, ritmo: 0.75, altura: 1.8, diaPesaje: 3, inicioFecha: '2026-10-29', inicioPeso: 102.3, sexo: null },
-      registros: [{ id: nuevoId(), fecha: '2026-10-29', peso: 102.3, notas: '' }],
+      registros: [
+        { id: nuevoId(), fecha: '2026-10-29', peso: 102.3, notas: '' },
+        { id: nuevoId(), fecha: '2026-11-04', peso: 102.8, notas: '' },
+      ],
       ui: { instalarCerrado: false, ultimoRespaldo: null, demo: null },
     };
   }
@@ -143,7 +146,12 @@
       // Versión anterior sin cambios (solo la semana 0 de ejemplo): se reemplaza por los datos iniciales nuevos.
       const r0 = Array.isArray(bruto.registros) ? bruto.registros : [];
       if ((bruto.version || 1) < 2 && r0.length === 1 && r0[0].fecha === '2026-10-26' && r0[0].peso === 108) return null;
-      return normalizar(bruto);
+      const datos = normalizar(bruto);
+      // Si solo está el punto de partida sin tocar, se agrega el pesaje del 04-11-2026 (102,8 kg).
+      if (datos.registros.length === 1 && datos.registros[0].fecha === '2026-10-29' && datos.registros[0].peso === 102.3) {
+        datos.registros.push({ id: nuevoId(), fecha: '2026-11-04', peso: 102.8, notas: '' });
+      }
+      return datos;
     } catch (e) {
       // Datos ilegibles: se conserva una copia para no perderlos y se parte de cero.
       try { localStorage.setItem(CLAVE + ':corrupto', localStorage.getItem(CLAVE) || ''); } catch (e2) { /* sin acceso */ }
